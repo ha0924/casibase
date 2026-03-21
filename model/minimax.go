@@ -15,14 +15,9 @@
 package model
 
 import (
-	"context"
 	"fmt"
 	"io"
-	"net/http"
-	"strings"
 
-	textv1 "github.com/ConnectAI-E/go-minimax/gen/go/minimax/text/v1"
-	"github.com/ConnectAI-E/go-minimax/minimax"
 	"github.com/casibase/casibase/i18n"
 )
 
@@ -31,32 +26,44 @@ type MiniMaxModelProvider struct {
 	groupID     string
 	apiKey      string
 	temperature float32
+	topP        float32
 }
 
-func NewMiniMaxModelProvider(subType string, groupID string, apiKey string, temperature float32) (*MiniMaxModelProvider, error) {
+func NewMiniMaxModelProvider(subType string, groupID string, apiKey string, temperature float32, topP float32) (*MiniMaxModelProvider, error) {
 	return &MiniMaxModelProvider{
 		subType:     subType,
 		groupID:     groupID,
 		apiKey:      apiKey,
 		temperature: temperature,
+		topP:        topP,
 	}, nil
 }
 
 func (p *MiniMaxModelProvider) GetPricing() string {
 	return `URL:
-https://api.minimax.chat/document/price
+https://platform.minimaxi.com/document/price
 
-| Billing Item     | Unit Price                    | Billing Description                                                                                            |
-|------------------|-------------------------------|----------------------------------------------------------------------------------------------------------------|
-| abab6            | 0.1 CNY/1k tokens             | Token count includes input and output                                                                          |
-| abab5.5          | 0.015 CNY/1k tokens           |                                                                                                                |
-| abab5.5s         | 0.005 CNY/1k tokens           |                                                                                                                |
+| Model                    | Input Price            | Output Price           |
+|--------------------------|------------------------|------------------------|
+| MiniMax-M2.7             | 2.1 CNY/1M tokens      | 8.4 CNY/1M tokens      |
+| MiniMax-M2.7-highspeed   | 4.2 CNY/1M tokens      | 16.8 CNY/1M tokens     |
+| MiniMax-M2.5             | 2.1 CNY/1M tokens      | 8.4 CNY/1M tokens      |
+| MiniMax-M2.5-highspeed   | 4.2 CNY/1M tokens      | 16.8 CNY/1M tokens     |
+| M2-her                   | 2.1 CNY/1M tokens      | 8.4 CNY/1M tokens      |
 `
 }
 
 func (p *MiniMaxModelProvider) calculatePrice(modelResult *ModelResult, lang string) error {
 	price := 0.0
 	priceTable := map[string]float64{
+		"MiniMax-M2.7":           0.0084,
+		"MiniMax-M2.7-highspeed": 0.0168,
+		"MiniMax-M2.5":           0.0084,
+		"MiniMax-M2.5-highspeed": 0.0168,
+		"M2-her":                 0.0084,
+		// Legacy models retained so that old configurations do not trigger a
+		// local pricing error before the upstream API has a chance to reject
+		// the deprecated model name with a clear error message.
 		"abab6":      0.1,
 		"abab5.5":    0.015,
 		"abab5-chat": 0.015,
@@ -75,67 +82,28 @@ func (p *MiniMaxModelProvider) calculatePrice(modelResult *ModelResult, lang str
 }
 
 func (p *MiniMaxModelProvider) QueryText(question string, writer io.Writer, history []*RawMessage, prompt string, knowledgeMessages []*RawMessage, agentInfo *AgentInfo, lang string) (*ModelResult, error) {
-	ctx := context.Background()
-	client, err := minimax.New(
-		minimax.WithApiToken(p.apiKey),
-		minimax.WithGroupId(p.groupID),
-	)
+	const BaseUrl = "https://api.minimaxi.com/v1"
+
+	// MiniMax OpenAI-compatible API requires temperature in the range (0.0, 1.0].
+	safeTemperature := p.temperature
+	if safeTemperature <= 0.0 || safeTemperature > 1.0 {
+		safeTemperature = 1.0
+	}
+
+	// Delegate to LocalModelProvider which handles streaming, token counting,
+	// and empty-response protection via the OpenAI-compatible endpoint.
+	// The groupID field is intentionally ignored: the new API authenticates
+	// via Bearer token only and no longer requires GroupId.
+	localProvider, err := NewLocalModelProvider("Custom", "custom-model", p.apiKey, safeTemperature, p.topP, 0, 0, BaseUrl, p.subType, 0, 0, "CNY")
 	if err != nil {
 		return nil, err
 	}
 
-	if strings.HasPrefix(question, "$CasibaseDryRun$") {
-		modelResult, err := getDefaultModelResult(p.subType, question, "")
-		if err != nil {
-			return nil, fmt.Errorf(i18n.Translate(lang, "model:cannot calculate tokens"))
-		}
-		if getContextLength(p.subType) > modelResult.TotalTokenCount {
-			return modelResult, nil
-		} else {
-			return nil, fmt.Errorf(i18n.Translate(lang, "model:exceed max tokens"))
-		}
-	}
-
-	req := &textv1.ChatCompletionsRequest{
-		Messages: []*textv1.Message{
-			{
-				SenderType: "USER",
-				Text:       question,
-			},
-		},
-		Model:       p.subType,
-		Temperature: p.temperature,
-	}
-	res, err := client.ChatCompletions(ctx, req)
+	modelResult, err := localProvider.QueryText(question, writer, history, prompt, knowledgeMessages, agentInfo, lang)
 	if err != nil {
 		return nil, err
 	}
-
-	flusher, ok := writer.(http.Flusher)
-	if !ok {
-		return nil, fmt.Errorf(i18n.Translate(lang, "model:writer does not implement http.Flusher"))
-	}
-
-	flushData := func(data string) error {
-		if _, err = fmt.Fprintf(writer, "event: message\ndata: %s\n\n", data); err != nil {
-			return err
-		}
-		flusher.Flush()
-		return nil
-	}
-
-	err = flushData(res.Choices[0].Text)
-	if err != nil {
-		return nil, err
-	}
-
-	totalTokens := int(res.Usage.TotalTokens)
-	modelResult := &ModelResult{ResponseTokenCount: totalTokens}
 
 	err = p.calculatePrice(modelResult, lang)
-	if err != nil {
-		return nil, err
-	}
-
-	return modelResult, nil
+	return modelResult, err
 }
