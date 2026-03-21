@@ -17,6 +17,8 @@ package model
 import (
 	"fmt"
 	"io"
+	"net/http"
+	"strings"
 
 	"github.com/casibase/casibase/i18n"
 )
@@ -99,11 +101,109 @@ func (p *MiniMaxModelProvider) QueryText(question string, writer io.Writer, hist
 		return nil, err
 	}
 
-	modelResult, err := localProvider.QueryText(question, writer, history, prompt, knowledgeMessages, agentInfo, lang)
+	filterWriter := newMinimaxThinkFilter(writer)
+
+	modelResult, err := localProvider.QueryText(question, filterWriter, history, prompt, knowledgeMessages, agentInfo, lang)
 	if err != nil {
 		return nil, err
 	}
 
 	err = p.calculatePrice(modelResult, lang)
 	return modelResult, err
+}
+
+type minimaxThinkFilter struct {
+	writer  io.Writer
+	flusher http.Flusher
+	inThink bool
+	buf     string
+}
+
+func newMinimaxThinkFilter(writer io.Writer) *minimaxThinkFilter {
+	flusher, _ := writer.(http.Flusher)
+	return &minimaxThinkFilter{
+		writer:  writer,
+		flusher: flusher,
+	}
+}
+
+func (w *minimaxThinkFilter) Write(p []byte) (n int, err error) {
+	eventStr := string(p)
+	const prefix = "event: message\ndata: "
+	const suffix = "\n\n"
+
+	if !strings.HasPrefix(eventStr, prefix) || !strings.HasSuffix(eventStr, suffix) {
+		return w.writer.Write(p)
+	}
+
+	content := eventStr[len(prefix) : len(eventStr)-len(suffix)]
+	w.buf += content
+
+	var output strings.Builder
+
+	for len(w.buf) > 0 {
+		if !w.inThink {
+			idx := strings.Index(w.buf, "<think>")
+			if idx >= 0 {
+				output.WriteString(w.buf[:idx])
+				w.inThink = true
+				w.buf = w.buf[idx+len("<think>"):]
+				continue
+			}
+
+			partial := false
+			for i := len("<think>") - 1; i >= 1; i-- {
+				if strings.HasSuffix(w.buf, "<think>"[:i]) {
+					output.WriteString(w.buf[:len(w.buf)-i])
+					w.buf = w.buf[len(w.buf)-i:]
+					partial = true
+					break
+				}
+			}
+			if !partial {
+				output.WriteString(w.buf)
+				w.buf = ""
+			}
+			break
+		}
+
+		idx := strings.Index(w.buf, "</think>")
+		if idx >= 0 {
+			w.inThink = false
+			w.buf = w.buf[idx+len("</think>"):]
+			for strings.HasPrefix(w.buf, "\n") {
+				w.buf = w.buf[1:]
+			}
+			continue
+		}
+
+		partial := false
+		for i := len("</think>") - 1; i >= 1; i-- {
+			if strings.HasSuffix(w.buf, "</think>"[:i]) {
+				w.buf = w.buf[len(w.buf)-i:]
+				partial = true
+				break
+			}
+		}
+		if !partial {
+			w.buf = ""
+		}
+		break
+	}
+
+	if output.Len() == 0 {
+		return len(p), nil
+	}
+
+	_, err = fmt.Fprintf(w.writer, "%s%s%s", prefix, output.String(), suffix)
+	if err != nil {
+		return 0, err
+	}
+	return len(p), nil
+}
+
+func (w *minimaxThinkFilter) Flush() {
+	if w.flusher != nil {
+		w.flusher.Flush()
+	}
 }
