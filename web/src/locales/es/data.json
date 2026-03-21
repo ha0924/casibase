@@ -600,7 +600,7 @@
     "Need notify - Tooltip": "Marca si es necesario enviar una notificación",
     "Reply to": "Mensaje padre",
     "Reply to - Tooltip": "ID del mensaje objetivo de la respuesta",
-    "Suggestions": "Sugerencias"
+    "Advice": "Sugerencias"
   },
   "node": {
     "Auto query": "Consulta automática",
@@ -1022,12 +1022,12 @@
     "Review state": "Estado de revisión",
     "Reviewed": "Revisado",
     "Role": "Rol",
-    "School": "Escuela",
-    "School - Tooltip": "Nombre de la escuela/institución",
-    "Score": "Calificación",
+    "Campus": "Escuela",
+    "Campus - Tooltip": "Nombre de la escuela/institución",
+    "Level": "Calificación",
     "Segment count": "Cantidad de segmentos",
-    "Stage": "Etapa",
-    "Stage - Tooltip": "Etapa educativa",
+    "Phase": "Etapa",
+    "Phase - Tooltip": "Etapa educativa",
     "Start time (s)": "Tiempo de inicio (s)",
     "Start time (s) - Tooltip": "Tiempo de inicio del segmento en segundos",
     "Tag on pause": "Etiquetar en pausa",

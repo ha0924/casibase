@@ -600,7 +600,7 @@
     "Need notify - Tooltip": "标记是否需要发送通知",
     "Reply to": "父消息",
     "Reply to - Tooltip": "回复的目标消息ID",
-    "Suggestions": "建议"
+    "Advice": "建议"
   },
   "node": {
     "Auto query": "自动查询",
@@ -1022,12 +1022,12 @@
     "Review state": "评审状态",
     "Reviewed": "已评审",
     "Role": "角色",
-    "School": "学校",
-    "School - Tooltip": "学校/机构名称",
-    "Score": "评级",
+    "Campus": "学校",
+    "Campus - Tooltip": "学校/机构名称",
+    "Level": "评级",
     "Segment count": "片段数量",
-    "Stage": "阶段",
-    "Stage - Tooltip": "教育阶段",
+    "Phase": "阶段",
+    "Phase - Tooltip": "教育阶段",
     "Start time (s)": "开始时间（秒）",
     "Start time (s) - Tooltip": "片段开始时间（秒）",
     "Tag on pause": "暂停时标记",

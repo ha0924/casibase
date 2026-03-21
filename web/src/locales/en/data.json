@@ -600,7 +600,7 @@
     "Need notify - Tooltip": "Enable to send external notifications",
     "Reply to": "Reply to",
     "Reply to - Tooltip": "The ID of the message to which this message is replied",
-    "Suggestions": "Suggestions"
+    "Advice": "Suggestions"
   },
   "node": {
     "Auto query": "Auto query",
@@ -1022,12 +1022,12 @@
     "Review state": "Review state",
     "Reviewed": "Reviewed",
     "Role": "Role",
-    "School": "School",
-    "School - Tooltip": "School/Institution name",
-    "Score": "Score",
+    "Campus": "School",
+    "Campus - Tooltip": "School/Institution name",
+    "Level": "Score",
     "Segment count": "Segment count",
-    "Stage": "Stage",
-    "Stage - Tooltip": "Education stage",
+    "Phase": "Stage",
+    "Phase - Tooltip": "Education stage",
     "Start time (s)": "Start time (s)",
     "Start time (s) - Tooltip": "Start time (s) - Tooltip",
     "Tag on pause": "Tag on pause",

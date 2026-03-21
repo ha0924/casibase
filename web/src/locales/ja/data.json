@@ -600,7 +600,7 @@
     "Need notify - Tooltip": "通知を送信する必要があるかどうかをマーク",
     "Reply to": "親メッセージ",
     "Reply to - Tooltip": "返信先のメッセージID",
-    "Suggestions": "提案"
+    "Advice": "提案"
   },
   "node": {
     "Auto query": "自動照会",
@@ -1022,12 +1022,12 @@
     "Review state": "審査状態",
     "Reviewed": "審査済み",
     "Role": "役割",
-    "School": "学校",
-    "School - Tooltip": "学校/機関名",
-    "Score": "評価",
+    "Campus": "学校",
+    "Campus - Tooltip": "学校/機関名",
+    "Level": "評価",
     "Segment count": "クリップ数",
-    "Stage": "段階",
-    "Stage - Tooltip": "教育段階",
+    "Phase": "段階",
+    "Phase - Tooltip": "教育段階",
     "Start time (s)": "開始時間（秒）",
     "Start time (s) - Tooltip": "セグメントの開始時間（秒）",
     "Tag on pause": "一時停止時にタグ付け",
